@@ -50,7 +50,7 @@ const handleUserRegistration = async (req, res) => {
 const handleUserLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-
+    
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -59,7 +59,7 @@ const handleUserLogin = async (req, res) => {
     }
 
     const user = await pool.query(
-      "SELECT email, password, roles FROM users WHERE email = $1",
+      "SELECT id, email, password, roles, full_name FROM users WHERE email = $1",
       [email],
     );
 
@@ -82,8 +82,10 @@ const handleUserLogin = async (req, res) => {
     const accessToken = jwt.sign(
       {
         userInfo: {
+          id: user.rows[0].id,
           email: user.rows[0].email,
           roles: user.rows[0].roles,
+          fullName: user.rows[0].full_name,
         },
       },
       process.env.ACCESS_TOKEN_SECRET,
@@ -105,7 +107,7 @@ const handleUserLogin = async (req, res) => {
       httpOnly: true,
       secure: (process.env.NODE_ENV = "production"),
       sameSite: "lax",
-      maxAge: 1 * 60 * 1000,
+      maxAge: 60 * 60 * 1000,
     });
 
     res.cookie("refreshToken", refreshToken, {
@@ -118,6 +120,7 @@ const handleUserLogin = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Logged in successfully!",
+      data: user.rows[0]
     });
   } catch (error) {
     console.error(error);
@@ -218,7 +221,7 @@ const handleUserLogout = async (req, res) => {
       });
     }
 
-    user.rows[0].refresh_token = "";
+    user.rows[0].refresh_token = null;
 
     await pool.query("UPDATE users SET refresh_token = $1 WHERE email = $2", [
       user.rows[0].refresh_token,
