@@ -10,7 +10,7 @@ Features
 
 Bonus Features
 1. Task categories/tags
-2. Due dates (admin can extend due date/time) .
+2. Due dates (admin can extend due date/time)
 
 3. Priority levels
 4. Search functionality

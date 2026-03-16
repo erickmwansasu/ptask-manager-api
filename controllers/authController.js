@@ -37,6 +37,7 @@ const handleUserRegistration = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Registered successfully!",
+      data: newUser.rows[0]
     });
   } catch (error) {
     console.error(error);

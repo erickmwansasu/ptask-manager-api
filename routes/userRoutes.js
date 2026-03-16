@@ -3,6 +3,6 @@ const router = express.Router()
 
 const userController = require('../controllers/userController')
 
-router.put('/updateProfile', userController.updateProfile)
+router.patch('/updateProfile', userController.updateProfile)
 
 module.exports = router
