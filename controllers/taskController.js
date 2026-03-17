@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { all } = require("../routes/adminRoutes");
 
 const getTasks = async (req, res) => {
   try {
@@ -35,7 +36,7 @@ const getTasks = async (req, res) => {
     );
 
     if (!tasks.rows.length) {
-      return res.status().json({
+      return res.status(200).json({
         success: true,
         message: "No tasks yet. Create first!",
       });
@@ -43,7 +44,84 @@ const getTasks = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Tasks found:",
+      message: `Tasks found: ${tasks.rows.length}`,
+      data: tasks.rows,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error!",
+    });
+  }
+};
+
+const getCompletedTasks = async (req, res) => {
+  try {
+    const { id: userId, roles } = req.user;
+    const allowedRoles = [5005, 5050];
+    const isAuthorized = roles.some((role) => allowedRoles.includes(role));
+
+    if (!isAuthorized) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized!",
+      });
+    }
+
+    const tasks = await pool.query(
+      `SELECT tasks.*, users.full_name
+      FROM tasks
+      JOIN users ON tasks.user_id = users.id
+      WHERE tasks.user_id = $1 AND tasks.status = $2`,
+      [userId, "completed"],
+    );
+
+    if (!tasks.rows.length) {
+      return res.status(200).json({
+        success: true,
+        message: "No completed tasks!",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Completed tasks: ${tasks.rows.length}`,
+      data: tasks.rows,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error!",
+    });
+  }
+};
+
+const getPendingTasks = async (req, res) => {
+  try {
+    const { id: userId, roles } = req.user;
+    const allowedRoles = [5005, 5050];
+    const isAuthorized = roles.some((role) => allowedRoles.includes(role));
+
+    if (!isAuthorized) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized!",
+      });
+    }
+
+    const tasks = await pool.query(
+      `SELECT tasks.*, users.full_name
+      FROM tasks
+      JOIN users ON tasks.user_id = users.id
+      WHERE tasks.user_id = $1 AND tasks.status = $2 OR status = $3`,
+      [userId, "pending", "in_progress"],
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Pending tasks: ${tasks.rows.length}`,
       data: tasks.rows,
     });
   } catch (error) {
@@ -178,6 +256,115 @@ const updateTask = async (req, res) => {
   }
 };
 
+const markComplete = async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { id: userId, roles } = req.user;
+    const allowedRoles = [5050, 5005];
+
+    const isAuthorized = roles.some((role) => allowedRoles.includes(role));
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden!",
+      });
+    }
+
+    const task = await pool.query(
+      "SELECT id, user_id FROM tasks WHERE id = $1",
+      [taskId],
+    );
+
+    if (!task.rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No task with this ID!",
+      });
+    }
+
+    console.log("User ID:", userId);
+    console.log(task.rows[0].user_id);
+
+    if (task.rows[0].user_id !== userId) {
+      return res.status(401).json({
+        success: false,
+        message: "You cannot update this task!",
+      });
+    }
+
+    const updatedTask = await pool.query(
+      "UPDATE tasks SET completed = $1, status = $2 WHERE id =  $3 RETURNING *",
+      [true, "completed", taskId],
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Task updated:",
+      data: updatedTask.rows[0],
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error!",
+    });
+  }
+};
+
+const markIncomplete = async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { id: userId, roles } = req.user;
+    const allowedRoles = [5050, 5005];
+
+    const isAuthorized = roles.some((role) => allowedRoles.includes(role));
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden!",
+      });
+    }
+
+    const task = await pool.query(
+      "SELECT id, user_id FROM tasks WHERE id = $1",
+      [taskId],
+    );
+
+    if (!task.rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No task with this ID!",
+      });
+    }
+
+    if (task.rows[0].user_id !== userId) {
+      return res.status(401).json({
+        success: false,
+        message: "You cannot update this task!",
+      });
+    }
+
+    const updatedTask = await pool.query(
+      "UPDATE tasks SET completed = $1, status = $2 WHERE id =  $3 RETURNING *",
+      [false, "in_progress", taskId],
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Task updated:",
+      data: updatedTask.rows[0],
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error!",
+    });
+  }
+};
+
 const deleteTask = async (req, res) => {
   try {
     const taskId = req.params.id;
@@ -229,7 +416,11 @@ const deleteTask = async (req, res) => {
 
 module.exports = {
   getTasks,
+  getCompletedTasks,
+  getPendingTasks,
   createTask,
   updateTask,
+  markComplete,
+  markIncomplete,
   deleteTask,
 };

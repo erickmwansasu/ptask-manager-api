@@ -185,9 +185,60 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const extendDueDate = async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { dueDate } = req.body;
+
+    if (!dueDate) {
+      return res.status(400).json({
+        success: false,
+        message: "No detail to update!",
+      });
+    }
+
+    if (!taskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter task ID!",
+      });
+    }
+
+    const task = await pool.query(
+      "SELECT id, due_date FROM tasks WHERE id = $1",
+      [taskId],
+    );
+
+    if (!task.rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No task with this ID!",
+      });
+    }
+
+    const updatedTask = await pool.query(
+      "UPDATE tasks SET due_date = $1 WHERE id = $2 RETURNING *",
+      [dueDate, taskId],
+    );
+
+    return res.status(400).json({
+      success: true,
+      message: "Due date extended!",
+      data: updatedTask.rows[0],
+    });
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error!"
+    });
+  }
+};
+
 module.exports = {
   getUsers,
   createUser,
   updateUser,
   deleteUser,
+  extendDueDate,
 };
