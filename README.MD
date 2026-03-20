@@ -2,10 +2,10 @@ A REST API for managing tasks with user authentication
 
 Features
 1. User regisrtation & login (JWT auth) y
-2. Create, read, update, delete tasks 
-3. Each user only sees their own tasks 
-4. Mark tasks as complete or incomplete 
-5. Filter tasks (completed, pending, all) 
+2. Create, read, update, delete tasks y
+3. Each user only sees their own tasks y
+4. Mark tasks as complete or incomplete y
+5. Filter tasks (completed, pending, all) y
 
 
 Bonus Features
